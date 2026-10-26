@@ -30,6 +30,19 @@ For optional Issue-to-draft-PR automation on your Mac, follow the
 [local worker guide](docs/issue-worker.md). The worker uses the same skill source
 and product-owned checks; it does not require a global plugin installation.
 
+Label preparation and the worker use one Rust CLI. From a source checkout,
+with Rust 1.89 or newer and GitHub CLI installed:
+
+```sh
+cargo install --path . --locked
+nikostack setup --repository OWNER/REPO
+nikostack setup --repository OWNER/REPO --apply
+```
+
+The preview is read-only on GitHub; `--apply` creates missing labels.
+Installing the plugin distributes the skill; install the optional CLI
+separately. The runtime does not require Python.
+
 Install the plugin once with the commands above. Then start the agent from the product repository you want to change:
 
 ```sh
@@ -61,16 +74,27 @@ When you open this directory in Codex or Claude Code, you can invoke the entry s
 
 ## Verification status
 
-- Version 0.2 adds fixture-tested label setup and local Issue automation. The
-  shared label script was applied to Niko and rerun without replacing its
-  existing labels. The worker's GitHub queue dry-run was exercised.
-- The live Claude edit/review smoke check is blocked: the execution approval
-  layer rejected an unexpected log-intake destination with an unverified
-  telemetry payload. Do not treat the new worker as end-to-end verified or
-  activate unattended processing until that check can be completed safely.
+- Version 0.2 replaces the label helper and local Issue worker with Rust.
+  See [worker verification](docs/issue-worker.md#verification-and-remaining-limits)
+  for test coverage and the distinction between fixtures and live behavior.
+- The prior helper prepared Niko's labels without replacing existing labels.
+  Rust runtime verification is recorded separately; it does not establish
+  that Niko's external integrations or installed application work.
+- Rust label setup was applied to Nikostack and rerun without changes.
+  Two live Haiku trials stopped on review-format and check failures;
+  [the trial record](docs/verification/2026-10-27-rust-worker.md) describes
+  fixes and the still-unverified automatic PR publication.
 
 - The skill metadata, relative links, and local discovery paths were checked. The Claude Code manifest and marketplace passed validation.
 - Codex CLI 0.164.0 and Claude Code 2.1.310 installed version 0.1.2 from the local marketplace and discovered the skill. Version 0.1.0 was also installed from GitHub in both CLIs. Temporary installations and registrations were removed.
 - Invoking the current version in a product session and applying it to a real product change remain untested.
 
 The [initial design decision](docs/decisions/0001-entry-skill-and-small-feature.md) explains the entry skill and scope. The [plugin distribution decision](docs/decisions/0002-plugin-distribution.md) records the packaging choice. The [reliable software engineering reference](docs/references/jane-street-reliable-software.md) covers shared principles and gaps; it does not replace product-specific rules or verification procedures.
+
+## Developing Nikostack
+
+This repository adopts [ai-agent-coding-guide](https://github.com/SuguruSasaki/ai-agent-coding-guide)
+for Rust and Markdown work. Codex and Claude Code read the same installed
+rules. See [coding guide adoption](docs/coding-guide.md) for the source
+revision and update procedure. Run `./.agents/validate rust` before submitting
+runtime changes.

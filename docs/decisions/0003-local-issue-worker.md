@@ -10,9 +10,15 @@ need a consistent way to prepare the AI labels without replacing local labels.
 
 ## Decision
 
-Package label definitions, an idempotent setup script, an issue form, and a
+Package label definitions, an idempotent Rust setup command, an issue form, and a
 serial Mac worker with the shared skill. Keep validation argv, project scopes,
 and operation recipes in each product.
+
+Implement the controller as one Rust CLI. Replace the Python prototype
+rather than maintaining two runtimes. Adopt the project's Rust and Markdown
+coding guide through the same sources for Codex and Claude Code. A serial
+controller needs no async runtime: child processes have bounded deadlines,
+and a signal handler requests termination of the current process group.
 
 The worker uses the existing subscription login and bounded fresh Claude
 sessions. The controller owns checks, GitHub writes, commits, and publication;

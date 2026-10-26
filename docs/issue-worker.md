@@ -7,7 +7,7 @@ updates the installed product, or installs a daemon.
 
 ## Requirements and trust
 
-Use Python 3.10 or newer on macOS, Git, authenticated GitHub CLI, and a Claude
+Use Rust 1.89 or newer on macOS, Git, authenticated GitHub CLI, and a Claude
 Code version supporting --restricted, --permission-prompts, and --json-schema.
 The CLI flags were checked against the available local CLI; run the smoke
 check before depending on another version. No API-key fallback is configured.
@@ -27,12 +27,13 @@ extra protected_paths, and optional hooks_path. Each check is a name and argv
 array; optional paths selects affected files and timeout_seconds bounds the
 command. Do not put credentials or personal data in the configuration.
 
-From the nikostack checkout, with paths replaced for your machine:
+Install once from the nikostack source checkout, then replace the product path:
 
 ```sh
-python3 skills/nikostack/scripts/issue-worker.py --project /path/to/product --dry-run
-python3 skills/nikostack/scripts/issue-worker.py --project /path/to/product
-python3 skills/nikostack/scripts/issue-worker.py --project /path/to/product --watch
+cargo install --path . --locked
+nikostack worker --project /path/to/product --dry-run
+nikostack worker --project /path/to/product
+nikostack worker --project /path/to/product --watch
 ```
 
 Default mode handles at most one task. --watch polls every 120 seconds and
@@ -41,6 +42,11 @@ the queue without claiming issues or checking Claude authentication.
 --state-dir changes the private local state root. Do not run a second worker
 on another machine or with a different state root for the same repository:
 the file lock coordinates one Mac and one state root, not a distributed fleet.
+
+The runtime and label setup are Rust; Python is not required. Rebuild the
+binary after changing the shared skill: its workflow and label definitions
+are embedded at compile time. The plugin and CLI have separate installation
+steps. Without installing globally, use `cargo run --locked -- worker ...`.
 
 ## Workflow and authority
 
@@ -70,8 +76,19 @@ Both AI roles default to sonnet, with medium effort for implementation and
 low for review. Implementation is capped at 24 turns and 20 minutes; review
 at 12 turns and 10 minutes. One repair uses a fresh bounded call. These caps
 do not constitute a fixed credit or dollar budget. The model is explicit,
-with no fallback to a more expensive family. Prepare complex architecture
-decisions before applying ai-ready.
+and permits `haiku` or `sonnet` in each model field. Choose Haiku for small,
+bounded documentation changes. The controller records the actual model,
+turn count, duration, and reported API-equivalent cost in private usage JSON.
+That cost is not a subscription billing statement. A different model family
+in Claude's usage report stops further calls; the controller cannot prevent
+an internal CLI fallback that has already happened. Prepare complex
+architecture decisions before applying ai-ready.
+
+Claude children receive the documented nonessential-traffic and telemetry
+opt-outs; parent settings stay unchanged. API-key and alternate-provider
+environment selectors are removed from those children. These controls follow
+[Claude network configuration](https://code.claude.com/docs/en/network-config)
+and do not replace review of the machine's network policy.
 
 ## Stop and recover
 
@@ -87,7 +104,8 @@ and explicitly add ai-ready. Existing PRs go back to ai-review instead of
 creating a second PR. A pre-existing branch without a PR may require manual
 recovery; force-push is not used.
 
-Private state is under ~/.local/state/nikostack/OWNER__REPO unless overridden.
+Private state is under ~/.local/state/nikostack/owner__repo unless overridden
+(repository names are lowercased for locking).
 Each run retains its issue snapshot, base SHA, check logs for both attempts,
 AI outputs, and receipt. Permissions are private on creation; do not share
 the directory or commit it. Logs can contain project information.
@@ -97,14 +115,20 @@ the directory or commit it. Logs can contain project information.
 Run the contract tests:
 
 ```sh
-python3 -m unittest discover -s tests -v
+./.agents/validate rust
 ```
 
 They use real local Git repositories and fake GitHub/AI, covering successful
 publication, no-op queues, duplicate PRs, failed checks, protected instructions,
-review mutation, scope drift, private error details, timeout, locks, and
+protected-file renames, review mutation, scope drift, timeout, locks, and
 idempotent label setup. Real Claude tool access and real GitHub interactions
 need separate smoke checks; tests alone do not establish those connections.
+
+The [Rust trial record](verification/2026-10-27-rust-worker.md) covers real
+label setup, implementation, check execution, and stopping on failures.
+It did not complete automatic draft-PR publication. The final feedback
+changes passed local tests but were not retried against Claude. Keep
+unattended processing disabled until a bounded live trial completes.
 
 Product behavior verification remains the product's responsibility. A draft
 PR and passing code review do not establish that Slack, a Mac UI, external

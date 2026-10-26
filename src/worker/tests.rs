@@ -1,0 +1,451 @@
+use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
+
+use super::*;
+use crate::github::Api;
+
+fn issue_value() -> Value {
+    json!({"number":7,"title":"Add greeting","body":"### 作業種別\nfeature\n### 目的\nGreet the user.\n### 対象範囲\nhello.txt only.\n### 期待する動作\nHello is present.\n### 完了条件\nThe file contains Hello.\n### 検証方法\nRead hello.txt.\n","state":"open","labels":[{"name":"ai-in-progress"}],"user":{"login":"owner","type":"User"}})
+}
+
+struct FakeApi {
+    issue: RefCell<Value>,
+    writes: RefCell<Vec<(String, Value)>>,
+    queued: Cell<bool>,
+    existing_pr: Cell<bool>,
+    approver_kind: RefCell<String>,
+    permission: RefCell<String>,
+    fail_comments: Cell<bool>,
+}
+impl Default for FakeApi {
+    fn default() -> Self {
+        Self {
+            issue: RefCell::new(issue_value()),
+            writes: RefCell::new(vec![]),
+            queued: Cell::new(false),
+            existing_pr: Cell::new(false),
+            approver_kind: RefCell::new("User".to_owned()),
+            permission: RefCell::new("write".to_owned()),
+            fail_comments: Cell::new(false),
+        }
+    }
+}
+impl Api for FakeApi {
+    fn request(
+        &self,
+        method: &str,
+        endpoint: &str,
+        payload: Option<Value>,
+        _pages: bool,
+    ) -> Result<Value> {
+        if method == "GET" {
+            if endpoint == "user" {
+                return Ok(json!({"login":"owner","id":42}));
+            }
+            if endpoint.contains("issues?") {
+                return Ok(if self.queued.get() {
+                    json!([[*self.issue.borrow()]])
+                } else {
+                    json!([[]])
+                });
+            }
+            if endpoint.contains("/events?") {
+                return Ok(
+                    json!([[{"event":"labeled","label":{"name":"ai-ready"},"actor":{"login":"approver","type":*self.approver_kind.borrow()}}]]),
+                );
+            }
+            if endpoint.contains("/permission") {
+                return Ok(json!({"permission":*self.permission.borrow()}));
+            }
+            if endpoint.contains("pulls?") {
+                return Ok(if self.existing_pr.get() {
+                    json!([{"number":9}])
+                } else {
+                    json!([])
+                });
+            }
+            return Ok(self.issue.borrow().clone());
+        }
+        let payload = payload.unwrap_or(Value::Null);
+        self.writes
+            .borrow_mut()
+            .push((endpoint.to_owned(), payload.clone()));
+        if endpoint.ends_with("/comments") && self.fail_comments.get() {
+            return Err(Error::blocked("Simulated reporting outage."));
+        }
+        if endpoint.ends_with("/labels") {
+            self.issue.borrow_mut()["labels"]
+                .as_array_mut()
+                .expect("labels")
+                .push(json!({"name":payload["labels"][0]}));
+        } else if method == "DELETE" {
+            let name = endpoint.rsplit('/').next().expect("name");
+            self.issue.borrow_mut()["labels"]
+                .as_array_mut()
+                .expect("labels")
+                .retain(|label| label["name"] != name);
+        }
+        if endpoint.ends_with("/pulls") {
+            return Ok(json!({"html_url":"https://github.com/owner/repo/pull/9"}));
+        }
+        Ok(Value::Null)
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Behavior {
+    Good,
+    Protected,
+    RenameProtected,
+    Repair,
+    AlwaysFail,
+    MutateReview,
+    RejectReview,
+}
+struct FakeAgent {
+    behavior: Behavior,
+    calls: Cell<usize>,
+}
+impl Agent for FakeAgent {
+    fn ask(&self, task: Task<'_>) -> Result<Value> {
+        self.calls.set(self.calls.get() + 1);
+        if matches!(task.role, Role::Review) {
+            if matches!(self.behavior, Behavior::MutateReview) {
+                fs::write(task.work.join("hello.txt"), "tampered")?;
+            }
+            return Ok(
+                json!({"verdict":if matches!(self.behavior,Behavior::RejectReview) {"fail"} else {"pass"},"summary":"Independent review","findings":[]}),
+            );
+        }
+        match self.behavior {
+            Behavior::Protected => fs::write(task.work.join("AGENTS.md"), "changed")?,
+            Behavior::RenameProtected => {
+                fs::rename(task.work.join("AGENTS.md"), task.work.join("moved.md"))?
+            }
+            Behavior::AlwaysFail => fs::write(task.work.join("hello.txt"), "wrong")?,
+            Behavior::Repair if matches!(task.role, Role::Implement) => {
+                fs::write(task.work.join("hello.txt"), "wrong")?
+            }
+            Behavior::Repair => {
+                assert!(task.prompt.contains("Failed check: Greeting contract"));
+                assert!(task.prompt.contains("argv:") && task.prompt.contains("Hello"));
+                assert!(task.prompt.contains("\"status\":\"failed\""));
+                fs::write(task.work.join("hello.txt"), "Hello\n")?;
+            }
+            _ => fs::write(task.work.join("hello.txt"), "Hello\n")?,
+        }
+        Ok(
+            json!({"status":"ready","summary":"Add a greeting","manual_checks":["Read the greeting as a user."]}),
+        )
+    }
+}
+
+struct Fixture {
+    _root: tempfile::TempDir,
+    project: PathBuf,
+    work: PathBuf,
+    job: PathBuf,
+    origin: PathBuf,
+    config: Config,
+    runner: Runner,
+    api: FakeApi,
+    agent: FakeAgent,
+}
+impl Fixture {
+    fn new(behavior: Behavior) -> Self {
+        let root = tempfile::tempdir().expect("temp");
+        let project = root.path().join("project");
+        let work = root.path().join("work");
+        let job = root.path().join("job");
+        let origin = root.path().join("origin.git");
+        fs::create_dir(&project).expect("project");
+        fs::create_dir(&job).expect("job");
+        let runner = Runner::default();
+        let git = |cwd: &Path, args: &[&str]| {
+            runner
+                .run(Request::new("git", cwd, args.iter().copied()))
+                .expect("git fixture")
+        };
+        git(&project, &["init", "--quiet", "-b", "main"]);
+        fs::write(project.join("AGENTS.md"), "Keep changes small.\n").expect("instructions");
+        git(&project, &["add", "."]);
+        git(
+            &project,
+            &[
+                "-c",
+                "user.name=owner",
+                "-c",
+                "user.email=42+owner@users.noreply.github.com",
+                "commit",
+                "--quiet",
+                "-m",
+                "Initial",
+            ],
+        );
+        git(
+            root.path(),
+            &[
+                "clone",
+                "--quiet",
+                "--bare",
+                project.to_str().expect("path"),
+                origin.to_str().expect("path"),
+            ],
+        );
+        git(
+            root.path(),
+            &[
+                "clone",
+                "--quiet",
+                origin.to_str().expect("path"),
+                work.to_str().expect("path"),
+            ],
+        );
+        git(&work, &["switch", "--quiet", "-c", "ai/issue-7"]);
+        let config = serde_json::from_value(json!({"repository":"owner/repo","checks":[{"name":"Greeting contract","argv":["sh","-c","test \"$(cat hello.txt)\" = Hello"]}]})).expect("config");
+        Self {
+            _root: root,
+            project,
+            work,
+            job,
+            origin,
+            config,
+            runner,
+            api: FakeApi::default(),
+            agent: FakeAgent {
+                behavior,
+                calls: Cell::new(0),
+            },
+        }
+    }
+    fn worker(&self) -> Worker<'_> {
+        Worker {
+            project: &self.project,
+            state: &self.job,
+            config: &self.config,
+            queue: Queue {
+                api: &self.api,
+                repository: &self.config.repository,
+            },
+            agent: &self.agent,
+            runner: &self.runner,
+        }
+    }
+    fn execute(&self) -> Result<Value> {
+        let issue = serde_json::from_value(issue_value()).expect("issue");
+        self.worker().execute(
+            &issue,
+            TaskKind::Feature,
+            &self.job,
+            &self.work,
+            "ai/issue-7",
+            &mut json!({}),
+        )
+    }
+    fn published(&self) -> bool {
+        self.api
+            .writes
+            .borrow()
+            .iter()
+            .any(|(endpoint, _)| endpoint.ends_with("/pulls"))
+    }
+}
+
+#[test]
+fn successful_run_checks_reviews_and_pushes_only_its_branch() {
+    let fixture = Fixture::new(Behavior::Good);
+    let before = fs::read_to_string(fixture.project.join("AGENTS.md")).expect("original");
+    assert_eq!(fixture.execute().expect("run")["status"], "pr-created");
+    assert_eq!(fixture.agent.calls.get(), 2);
+    assert_eq!(
+        fs::read_to_string(fixture.project.join("AGENTS.md")).expect("original"),
+        before
+    );
+    assert!(!fixture.project.join("hello.txt").exists());
+    let remote = fixture
+        .runner
+        .run(Request::new(
+            "git",
+            &fixture.origin,
+            ["show", "refs/heads/ai/issue-7:hello.txt"],
+        ))
+        .expect("remote branch");
+    assert_eq!(remote, "Hello\n");
+    let writes = fixture.api.writes.borrow();
+    let (_, pr) = writes
+        .iter()
+        .find(|(endpoint, _)| endpoint.ends_with("/pulls"))
+        .expect("PR");
+    assert_eq!(pr["draft"], true);
+    assert!(
+        pr["body"]
+            .as_str()
+            .expect("body")
+            .contains("Greeting contract | verified")
+    );
+    assert!(
+        pr["body"]
+            .as_str()
+            .expect("body")
+            .contains("Read the greeting as a user.")
+    );
+    assert_eq!(
+        fixture.api.issue.borrow()["labels"],
+        json!([{"name":"ai-review"}])
+    );
+}
+
+#[test]
+fn failed_check_gets_one_repair_then_independent_review() {
+    let fixture = Fixture::new(Behavior::Repair);
+    assert!(fixture.execute().is_ok());
+    assert_eq!(fixture.agent.calls.get(), 3);
+    assert!(fixture.job.join("checks-1.json").exists());
+    assert!(fixture.job.join("checks-2.json").exists());
+}
+
+#[test]
+fn recurring_failure_stops_after_one_repair_without_publication() {
+    let fixture = Fixture::new(Behavior::AlwaysFail);
+    assert!(fixture.execute().is_err());
+    assert_eq!(fixture.agent.calls.get(), 2);
+    assert!(!fixture.published());
+}
+
+#[test]
+fn protected_edits_and_renames_stop_before_review() {
+    for behavior in [Behavior::Protected, Behavior::RenameProtected] {
+        let fixture = Fixture::new(behavior);
+        assert!(fixture.execute().is_err());
+        assert_eq!(fixture.agent.calls.get(), 1);
+        assert!(!fixture.published());
+    }
+}
+
+#[test]
+fn rejected_or_mutating_review_cannot_publish() {
+    for behavior in [Behavior::RejectReview, Behavior::MutateReview] {
+        let fixture = Fixture::new(behavior);
+        assert!(fixture.execute().is_err());
+        assert!(!fixture.published());
+    }
+}
+
+#[test]
+fn revoked_or_changed_issue_stops_before_publication() {
+    let fixture = Fixture::new(Behavior::Good);
+    fixture.api.issue.borrow_mut()["body"] = json!("Changed scope");
+    assert!(fixture.execute().is_err());
+    assert!(!fixture.published());
+}
+
+#[test]
+fn uncovered_files_cannot_be_reported_as_verified() {
+    let mut fixture = Fixture::new(Behavior::Good);
+    fixture.config.checks[0].paths = vec!["src/**".to_owned()];
+    assert!(fixture.execute().is_err());
+    assert_eq!(
+        fixture.agent.calls.get(),
+        1,
+        "uncovered paths need configuration, not an AI repair"
+    );
+    assert!(!fixture.published());
+}
+
+#[test]
+fn empty_queue_and_preview_use_no_agent_and_write_nothing() {
+    let fixture = Fixture::new(Behavior::Good);
+    assert_eq!(
+        fixture.worker().once(false).expect("idle")["status"],
+        "idle"
+    );
+    fixture.api.queued.set(true);
+    fixture.api.issue.borrow_mut()["labels"] = json!([{"name":"ai-ready"}]);
+    assert_eq!(
+        fixture.worker().once(true).expect("preview")["ready"]
+            .as_array()
+            .expect("ready")
+            .len(),
+        1
+    );
+    assert_eq!(fixture.agent.calls.get(), 0);
+    assert!(fixture.api.writes.borrow().is_empty());
+}
+
+#[test]
+fn bots_and_read_only_approvers_cannot_trigger_work() {
+    let fixture = Fixture::new(Behavior::Good);
+    fixture.api.queued.set(true);
+    fixture.api.issue.borrow_mut()["labels"] = json!([{"name":"ai-ready"}]);
+    *fixture.api.approver_kind.borrow_mut() = "Bot".to_owned();
+    assert_eq!(
+        fixture.worker().once(false).expect("unapproved")["status"],
+        "unapproved"
+    );
+    *fixture.api.approver_kind.borrow_mut() = "User".to_owned();
+    *fixture.api.permission.borrow_mut() = "read".to_owned();
+    assert_eq!(
+        fixture.worker().once(false).expect("unapproved")["status"],
+        "unapproved"
+    );
+    assert_eq!(fixture.agent.calls.get(), 0);
+}
+
+#[test]
+fn existing_pr_moves_to_review_without_duplicate_agent_work() {
+    let fixture = Fixture::new(Behavior::Good);
+    fixture.api.queued.set(true);
+    fixture.api.existing_pr.set(true);
+    fixture.api.issue.borrow_mut()["labels"] = json!([{"name":"ai-ready"},{"name":"product"}]);
+    assert_eq!(
+        fixture.worker().once(false).expect("existing")["status"],
+        "existing-pr"
+    );
+    assert_eq!(fixture.agent.calls.get(), 0);
+    assert_eq!(
+        fixture.api.issue.borrow()["labels"],
+        json!([{"name":"product"},{"name":"ai-review"}])
+    );
+}
+
+#[test]
+fn invalid_task_is_blocked_and_reporting_failure_is_explicit() {
+    let fixture = Fixture::new(Behavior::Good);
+    fixture.api.queued.set(true);
+    fixture.api.issue.borrow_mut()["labels"] = json!([{"name":"ai-ready"}]);
+    fixture.api.issue.borrow_mut()["body"] = json!("Missing acceptance");
+    fixture.api.fail_comments.set(true);
+    assert_eq!(
+        fixture.worker().once(false).expect("failure")["status"],
+        "report-failed"
+    );
+    assert_eq!(fixture.agent.calls.get(), 0);
+    assert_eq!(
+        fixture.api.issue.borrow()["labels"],
+        json!([{"name":"ai-blocked"}])
+    );
+    let run = fs::read_dir(&fixture.job)
+        .expect("runs")
+        .next()
+        .expect("one run")
+        .expect("entry")
+        .path();
+    let receipt: Value =
+        serde_json::from_slice(&fs::read(run.join("receipt.json")).expect("receipt"))
+            .expect("JSON");
+    assert!(
+        receipt["run"].is_string(),
+        "run IDs must be readable JSON strings"
+    );
+}
+
+#[test]
+fn product_feature_map_can_change_without_modifying_validator() {
+    let fixture = Fixture::new(Behavior::Good);
+    let file = fixture
+        .work
+        .join(".agents/skills/verify-product/references/features.md");
+    fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
+    fs::write(file, "Updated map\n").expect("map");
+    assert!(fixture.worker().stage_and_guard(&fixture.work).is_ok());
+}

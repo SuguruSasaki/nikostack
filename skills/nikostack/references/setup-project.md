@@ -12,19 +12,22 @@ issues. Verify that GitHub CLI is authenticated and Issues are enabled.
 
 ## Prepare shared labels
 
-Use the script next to this skill. From a nikostack checkout:
+Install the Rust CLI from a matching nikostack source checkout
+(Rust 1.89 or newer is required), then prepare the product:
 
 ```sh
-python3 skills/nikostack/scripts/setup-project.py --repository OWNER/REPO
-python3 skills/nikostack/scripts/setup-project.py --repository OWNER/REPO --apply
+cargo install --path . --locked
+nikostack setup --repository OWNER/REPO
+nikostack setup --repository OWNER/REPO --apply
 ```
 
-The first command previews. The second creates only missing labels and
-verifies them. It preserves existing colors and descriptions, does not label
+After installation, the first setup command previews. `--apply` creates only
+missing labels and verifies them. It preserves existing colors and descriptions, does not label
 issues, and does not start Claude. Apply within an explicit project-setup
 request; do not ask again when the user has already authorized this setup.
-For an installed plugin, resolve this SKILL.md directory and use the script's
-absolute path. Do not copy the shared script into each product.
+An installed plugin does not build the optional CLI. Obtain the matching
+source release and install it once. Do not copy the shared implementation
+into each product.
 
 The shared definitions are [issue-labels.json](../assets/issue-labels.json):
 
