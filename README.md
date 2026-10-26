@@ -54,7 +54,7 @@ When you open this directory in Codex or Claude Code, you can invoke the entry s
 ## Verification status
 
 - The skill metadata, relative links, and local discovery paths were checked. The Claude Code manifest and marketplace passed validation.
-- Codex CLI 0.164.0 and Claude Code 2.1.310 installed version 0.1.1 from the local marketplace and discovered the skill. Version 0.1.0 was also installed from GitHub in both CLIs. Temporary installations and registrations were removed.
-- Invoking version 0.1.1 in a product session and applying it to a real product change remain untested.
+- Codex CLI 0.164.0 and Claude Code 2.1.310 installed version 0.1.2 from the local marketplace and discovered the skill. Version 0.1.0 was also installed from GitHub in both CLIs. Temporary installations and registrations were removed.
+- Invoking the current version in a product session and applying it to a real product change remain untested.
 
 The [initial design decision](docs/decisions/0001-entry-skill-and-small-feature.md) explains the entry skill and scope. The [plugin distribution decision](docs/decisions/0002-plugin-distribution.md) records the packaging choice. The [reliable software engineering reference](docs/references/jane-street-reliable-software.md) covers shared principles and gaps; it does not replace product-specific rules or verification procedures.
