@@ -1,0 +1,5 @@
+interface:
+  display_name: Nikostack
+  short_description: Run the shared development workflow on demand.
+policy:
+  allow_implicit_invocation: false

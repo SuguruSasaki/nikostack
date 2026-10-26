@@ -1,6 +1,7 @@
 ---
 name: nikostack
 description: Route a product-development request through the project's instructions and evidence. Use for a small feature, bug fix, or code review; load the small-feature procedure for a feature change. Do not use for unrelated writing or operations work.
+disable-model-invocation: true
 ---
 
 # nikostack
