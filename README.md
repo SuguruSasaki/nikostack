@@ -81,9 +81,10 @@ When you open this directory in Codex or Claude Code, you can invoke the entry s
   Rust runtime verification is recorded separately; it does not establish
   that Niko's external integrations or installed application work.
 - Rust label setup was applied to Nikostack and rerun without changes.
-  Two live Haiku trials stopped on review-format and check failures;
+  After two stopped trials, a live Haiku run completed Issue-to-Draft-PR
+  processing for a small documentation task, creating [PR #5](https://github.com/SuguruSasaki/nikostack/pull/5).
   [the trial record](docs/verification/2026-10-27-rust-worker.md) describes
-  fixes and the still-unverified automatic PR publication.
+  fixes, evidence, and the remaining product-specific verification.
 
 - The skill metadata, relative links, and local discovery paths were checked. The Claude Code manifest and marketplace passed validation.
 - Codex CLI 0.164.0 and Claude Code 2.1.310 installed version 0.1.2 from the local marketplace and discovered the skill. Version 0.1.0 was also installed from GitHub in both CLIs. Temporary installations and registrations were removed.

@@ -131,10 +131,10 @@ idempotent label setup. Real Claude tool access and real GitHub interactions
 need separate smoke checks; tests alone do not establish those connections.
 
 The [Rust trial record](verification/2026-10-27-rust-worker.md) covers real
-label setup, implementation, check execution, and stopping on failures.
-It did not complete automatic draft-PR publication. The final feedback
-changes passed local tests but were not retried against Claude. Keep
-unattended processing disabled until a bounded live trial completes.
+label setup, stopping on failures, and a completed documentation task from
+Issue to Draft PR. The revised repair-feedback path has contract coverage
+but was not needed in the successful live trial. This does not establish
+unattended operation or verify a product's behavior.
 
 Product behavior verification remains the product's responsibility. A draft
 PR and passing code review do not establish that Slack, a Mac UI, external
