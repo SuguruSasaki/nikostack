@@ -1,0 +1,14 @@
+{
+  "name": "nikostack",
+  "description": "Nikostack development workflows",
+  "owner": {
+    "name": "SuguruSasaki"
+  },
+  "plugins": [
+    {
+      "name": "nikostack",
+      "source": "./",
+      "description": "Shared development workflow for Codex and Claude Code"
+    }
+  ]
+}
