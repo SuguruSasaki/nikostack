@@ -20,6 +20,13 @@ claude plugin marketplace add SuguruSasaki/nikostack
 claude plugin install nikostack@nikostack
 ```
 
+## Prepare a product project
+
+After installing nikostack, follow [project setup](skills/nikostack/references/setup-project.md)
+to preview and create missing AI task labels in the target product repository.
+Existing labels are preserved. Plugin installation itself does not change
+GitHub settings or start an agent.
+
 ## Activate it in a product repository
 
 Install the plugin once with the commands above. Then start the agent from the product repository you want to change:
