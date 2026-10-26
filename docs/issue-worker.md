@@ -90,6 +90,12 @@ environment selectors are removed from those children. These controls follow
 [Claude network configuration](https://code.claude.com/docs/en/network-config)
 and do not replace review of the machine's network policy.
 
+All controller children also receive `GH_TELEMETRY=false` and
+`DO_NOT_TRACK=1`, including nested Git credential helpers and checks.
+This uses [GitHub CLI's documented opt-out](https://docs.github.com/en/github-cli/github-cli/github-cli-telemetry)
+without changing the user's global configuration or redirecting traffic.
+It controls the standard GitHub CLI collector, not arbitrary extensions.
+
 ## Stop and recover
 
 Ctrl-C or SIGTERM stops the worker and its current child process group.

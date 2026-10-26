@@ -63,6 +63,12 @@ impl Runner {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .process_group(0);
+        // Official GitHub CLI opt-outs also reach gh used by Git helpers
+        // or configured checks. Change child environments, not global settings.
+        // https://docs.github.com/en/github-cli/github-cli/github-cli-telemetry
+        command
+            .env("GH_TELEMETRY", "false")
+            .env("DO_NOT_TRACK", "1");
         if matches!(request.environment, Environment::ClaudeSubscription) {
             for (name, _) in std::env::vars_os() {
                 let text = name.to_string_lossy();
@@ -77,7 +83,6 @@ impl Runner {
                 ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"),
                 ("DISABLE_TELEMETRY", "1"),
                 ("DISABLE_ERROR_REPORTING", "1"),
-                ("DO_NOT_TRACK", "1"),
                 ("CLAUDE_CODE_ENABLE_TELEMETRY", "0"),
                 ("CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL", "0"),
                 ("ENABLE_BETA_TRACING_DETAILED", "0"),
@@ -232,11 +237,40 @@ mod tests {
         assert_eq!(std::env::var_os("DISABLE_TELEMETRY"), before);
     }
     #[test]
+    fn github_opt_out_reaches_nested_children_without_changing_parent() {
+        let before = (
+            std::env::var_os("GH_TELEMETRY"),
+            std::env::var_os("DO_NOT_TRACK"),
+        );
+        let runner = Runner::default();
+        for environment in [Environment::Inherited, Environment::ClaudeSubscription] {
+            let mut request = Request::new(
+                "sh",
+                Path::new("."),
+                [
+                    "-c",
+                    r#"sh -c 'test "$GH_TELEMETRY" = false && test "$DO_NOT_TRACK" = 1'"#,
+                ],
+            );
+            request.environment = environment;
+            runner.run(request).expect("nested child receives opt-outs");
+        }
+        assert_eq!(
+            (
+                std::env::var_os("GH_TELEMETRY"),
+                std::env::var_os("DO_NOT_TRACK"),
+            ),
+            before
+        );
+    }
+    #[test]
     fn timeout_keeps_output_and_is_bounded() {
         let dir = tempfile::tempdir().expect("temp");
         let log = dir.path().join("log");
         let mut request = Request::new("sh", dir.path(), ["-c", "printf started; sleep 20"]);
-        request.timeout = Duration::from_millis(100);
+        // Match the supported one-second minimum for checks; parallel Git
+        // fixtures can consume 100 ms before the shell prints its first byte.
+        request.timeout = Duration::from_secs(1);
         request.log = Some(log.clone());
         let start = Instant::now();
         assert!(Runner::default().run(request).is_err());
