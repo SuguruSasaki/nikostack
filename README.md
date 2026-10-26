@@ -1,6 +1,6 @@
 # nikostack
 
-Nikostack provides a shared development workflow for coding agents across product repositories. Version 0.1 starts with an entry skill and a procedure for small feature changes. Each product project owns its operations, expected behavior, and verification methods.
+Nikostack provides a shared development workflow for coding agents across product repositories. Version 0.2 adds project label setup and an optional serial Mac Issue worker to the entry skill and small-feature procedure. Each product project owns its operations, expected behavior, and verification methods.
 
 ## Install as a plugin
 
@@ -20,14 +20,28 @@ claude plugin marketplace add SuguruSasaki/nikostack
 claude plugin install nikostack@nikostack
 ```
 
-## Prepare a product project
-
-After installing nikostack, follow [project setup](skills/nikostack/references/setup-project.md)
-to preview and create missing AI task labels in the target product repository.
-Existing labels are preserved. Plugin installation itself does not change
-GitHub settings or start an agent.
-
 ## Activate it in a product repository
+
+On first adoption, follow [project setup](skills/nikostack/references/setup-project.md).
+The shared helper previews and creates missing AI issue labels without replacing
+existing labels or starting work. Plugin installation itself does not write to GitHub.
+
+For optional Issue-to-draft-PR automation on your Mac, follow the
+[local worker guide](docs/issue-worker.md). The worker uses the same skill source
+and product-owned checks; it does not require a global plugin installation.
+
+Label preparation and the worker use one Rust CLI. From a source checkout,
+with Rust 1.89 or newer and GitHub CLI installed:
+
+```sh
+cargo install --path . --locked
+nikostack setup --repository OWNER/REPO
+nikostack setup --repository OWNER/REPO --apply
+```
+
+The preview is read-only on GitHub; `--apply` creates missing labels.
+Installing the plugin distributes the skill; install the optional CLI
+separately. The runtime does not require Python.
 
 Install the plugin once with the commands above. Then start the agent from the product repository you want to change:
 
@@ -60,8 +74,28 @@ When you open this directory in Codex or Claude Code, you can invoke the entry s
 
 ## Verification status
 
+- Version 0.2 replaces the label helper and local Issue worker with Rust.
+  See [worker verification](docs/issue-worker.md#verification-and-remaining-limits)
+  for test coverage and the distinction between fixtures and live behavior.
+- The prior helper prepared Niko's labels without replacing existing labels.
+  Rust runtime verification is recorded separately; it does not establish
+  that Niko's external integrations or installed application work.
+- Rust label setup was applied to Nikostack and rerun without changes.
+  After two stopped trials, a live Haiku run completed Issue-to-Draft-PR
+  processing for a small documentation task, creating [PR #5](https://github.com/SuguruSasaki/nikostack/pull/5).
+  [the trial record](docs/verification/2026-10-27-rust-worker.md) describes
+  fixes, evidence, and the remaining product-specific verification.
+
 - The skill metadata, relative links, and local discovery paths were checked. The Claude Code manifest and marketplace passed validation.
 - Codex CLI 0.164.0 and Claude Code 2.1.310 installed version 0.1.2 from the local marketplace and discovered the skill. Version 0.1.0 was also installed from GitHub in both CLIs. Temporary installations and registrations were removed.
 - Invoking the current version in a product session and applying it to a real product change remain untested.
 
 The [initial design decision](docs/decisions/0001-entry-skill-and-small-feature.md) explains the entry skill and scope. The [plugin distribution decision](docs/decisions/0002-plugin-distribution.md) records the packaging choice. The [reliable software engineering reference](docs/references/jane-street-reliable-software.md) covers shared principles and gaps; it does not replace product-specific rules or verification procedures.
+
+## Developing Nikostack
+
+This repository adopts [ai-agent-coding-guide](https://github.com/SuguruSasaki/ai-agent-coding-guide)
+for Rust and Markdown work. Codex and Claude Code read the same installed
+rules. See [coding guide adoption](docs/coding-guide.md) for the source
+revision and update procedure. Run `./.agents/validate rust` before submitting
+runtime changes.

@@ -8,9 +8,11 @@ disable-model-invocation: true
 
 Use this as an entry point for work in the **target product repository**. Identify that repository before acting. Its instructions, existing skills, decisions, and verification recipe govern the work; this skill does not replace them. Keep product-specific commands and acceptance criteria there. Do not copy private data or credentials into nikostack.
 
-For first-time adoption or an explicit request to prepare AI issue handling,
-read [references/setup-project.md](references/setup-project.md). Preserve
-existing labels and do not start work merely because labels were prepared.
+For first-time adoption or a request to prepare the project's AI issue workflow,
+read [references/setup-project.md](references/setup-project.md). Check the GitHub
+repository and preview the shared issue-label setup, then add missing labels
+within the user's authorized setup scope. Preserve existing labels. Ordinary
+feature or review requests do not authorize changing repository settings.
 
 1. Clarify the requested outcome and an observable completion condition. Read the relevant instructions, code, callers, tests, and past decisions before editing.
 2. Classify the task as a feature, bug fix, or review. For a **small feature**, read [references/small-feature.md](references/small-feature.md) and follow it. For a bug fix, establish the observed failure and reproduce it before choosing the smallest correction. For a review, inspect and report findings without editing unless the user also asked for fixes.

@@ -1,0 +1,55 @@
+name: AI開発タスク
+description: 目的・範囲・検証方法を揃えてから、人がai-readyを付ける
+title: "[AI task] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        作成しただけでは自動実行されません。
+        内容を確認し、着手を許可するときにai-readyを付けてください。
+        個人の記憶、認証情報、実ユーザーの情報は書かないでください。
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 作業種別
+      options:
+        - feature
+        - bug
+        - review
+    validations:
+      required: true
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 目的
+      description: 誰のどの問題を解決するか
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 対象範囲
+      description: 変更する機能・対象と、扱わない範囲
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 期待する動作
+      description: 利用者の操作と観測できる結果
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: 合格を判断できる条件
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 検証方法
+      description: 自動チェック、実動確認、必要な環境、未実行時の扱い
+    validations:
+      required: true

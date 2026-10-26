@@ -1,0 +1,8 @@
+{
+  "repository": "OWNER/REPO",
+  "base": "main",
+  "model": "sonnet",
+  "review_model": "sonnet",
+  "checks": [],
+  "protected_paths": []
+}
