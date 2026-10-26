@@ -1,72 +1,72 @@
-# 信頼できるソフトウェア開発の原則
+# Principles for Reliable Software Engineering
 
-## 出典と位置付け
+## Source and scope
 
-- 講演: Ron Minsky（Jane Street）「[Now more than ever: building reliable software in the age of agents](https://www.youtube.com/watch?v=rUYP4C29yCw)」、Bug Bash 2026。
-- 確認した資料: [主催者 Antithesis による講演紹介](https://antithesis.com/bugbash/talks/now-more-than-ever/)、[Jane Street による Expect Tests の解説](https://blog.janestreet.com/testing-with-expectations/)、[Verus 公式ガイド](https://verus-lang.github.io/verus/guide/overview.html)。
-- 確認の限界: YouTube 動画本体の発話・字幕は直接検証できていない。以下で「講演の趣旨」とするのは主催者の紹介で確認できた範囲に限る。具体的な運用例、優先度、Nikostack への判断はこの文書独自の提案であり、講演者の発言として扱わない。
+- Talk: Ron Minsky (Jane Street), “[Now more than ever: building reliable software in the age of agents](https://www.youtube.com/watch?v=rUYP4C29yCw),” Bug Bash 2026.
+- Sources checked: the [organizer's description of the talk](https://antithesis.com/bugbash/talks/now-more-than-ever/), [Jane Street's explanation of expect tests](https://blog.janestreet.com/testing-with-expectations/), and the [official Verus guide](https://verus-lang.github.io/verus/guide/overview.html).
+- Verification limit: The video's spoken content and subtitles were not checked directly. References to the talk's themes below are limited to what the organizer's description supports. The operational examples, priorities, and Nikostack decisions in this document are our own proposals, not attributed statements by the speaker.
 
-主催者の紹介では、型による不変条件と速いフィードバック、Expect Tests による振る舞いの可視化とライブラリ単位の決定的なシミュレーション、人間の理解を支えるコードレビュー、形式検証への関心が講演の要点として挙げられている。Nikostack はこれを、エージェントが変更を自分で検証し、人間が結果を判断できる開発手順として取り入れる。全プロジェクトに同じツールを導入する意図はない。
+The organizer describes type systems as a way to enforce invariants and give agents fast feedback; expect tests as a way to expose behavior and support deterministic simulation at the library level; code review as a way to maintain quality and human understanding; and formal verification as a growing area of interest. Nikostack applies these themes to a workflow in which agents verify their changes and people can assess the evidence. It does not prescribe the same tools for every project.
 
-## 採用する原則と適用例
+## Adopted principles and examples
 
-### 1. 不正な状態を作りにくくする
+### 1. Make invalid states difficult to create
 
-入力や状態の不変条件をまず特定し、型、コンストラクタ、境界での検証、静的解析など、対象言語が提供する仕組みで守る。プロンプトだけを制約の唯一の根拠にしない。ただし、型チェックだけで実行時入力や業務上の正しさが保証されるわけではない。
+Identify the invariants of inputs and state. Enforce them with the target language's types, constructors, boundary validation, and static analysis where appropriate. Do not rely on a prompt as the only constraint. Type checking alone cannot guarantee that runtime input or business behavior is correct.
 
-例: `未検証の入力 → 検証済みの値 → 処理` の境界を明示する。Rust では列挙型や非公開フィールドを持つ型と検証付きコンストラクタ、TypeScript では判別可能な union と実行時の入力検証を状況に応じて使う。言語別の規約は利用先のリポジトリで選ぶ。
+Example: Make the transition from `unvalidated input -> validated value -> operation` explicit. In Rust, consider enums or types with private fields and validating constructors. In TypeScript, consider discriminated unions together with runtime input validation. Each target repository chooses its own language-specific conventions.
 
-### 2. 短い検証ループを用意する
+### 2. Keep verification loops short
 
-変更箇所に関係するコンパイル・型チェック、Lint、テストを、エージェントが自分で実行できるようにする。速く原因を絞れるチェックから始め、影響範囲に応じて広げる。失敗時は再現手順、失敗した対象、期待値と実測値が分かる出力を残す。結果は実行したコードの状態と結び付け、実行不能は成功と区別する。
+Make relevant compilation or type checks, lint, and tests executable by the agent. Start with fast checks that narrow the cause of failure, then expand according to the affected behavior. On failure, retain a reproducible action and output that identifies the failing target, expected result, and observed result. Tie results to the exact code state and distinguish unavailable checks from passing checks.
 
-例: 対象モジュールの型チェックと短いテストを先に実行し、必要なら結合テストや実際の利用面で確認する。具体的なコマンドや実行順序は利用先が管理する。
+Example: Run the affected module's type check and focused tests first. Add integration tests and checks through the actual user-facing surface when needed. The target project owns specific commands and ordering.
 
-### 3. 外から観測できる振る舞いを確かめる
+### 3. Test observable behavior
 
-意味のある入出力、状態遷移、副作用をテストする。Expect Tests や Snapshot Tests は、振る舞いの差分を人間とエージェントの両方に見せる手段として有効な場合がある。更新時は差分と期待する仕様を照合し、無条件に承認しない。表示全体の大きなスナップショットより、失敗原因を絞れる小さなシナリオを優先する。内部実装をなぞるだけのテストは増やさない。
+Test meaningful inputs, outputs, state transitions, and side effects. Expect tests and snapshot tests can make behavior changes visible to agents and reviewers. Compare every proposed snapshot update with the intended behavior; never approve updates unconditionally. Prefer small scenarios that make failures easy to diagnose over broad snapshots of entire views. Avoid tests that only repeat the implementation.
 
-例: API のエラー入力と正常入力を固定し、返す結果と永続化された副作用を確認する。出力の差分が意図した変更か、レビュー時に判断できる形で示す。
+Example: Fix a normal and an error input for an API, then check its response and persisted side effects. Show the output diff in a form a reviewer can compare with the intended change.
 
-### 4. 再現できる条件で試す
+### 4. Reproduce test conditions
 
-不安定さが検証を妨げる場合は、時刻、乱数、ネットワーク、外部サービスを差し替え可能にし、同じ条件で再実行できるようにする。必要に応じて LLM の非決定的な応答も固定する。ただし固定応答だけでは外部サービスとの接続や実運用を確認できないため、別の確認が必要になる場合がある。
+When nondeterminism obstructs verification, make time, randomness, network behavior, and external services controllable so an agent can rerun the same case. Fix or mock nondeterministic LLM responses where needed. A fixed response does not verify the real service connection or operation; those may need separate checks.
 
-例: 時計と乱数の種を注入し、外部 API の失敗応答を再現してリトライと副作用を検証する。障害を再現するための条件も記録する。
+Example: Inject a clock and random seed, reproduce an external API failure, and check retry behavior and side effects. Record the conditions needed to reproduce the failure.
 
-### 5. 人間が追える変更を保つ
+### 5. Keep changes reviewable
 
-差分を小さく、目的ごとにまとめ、変更理由、影響範囲、検証した面、残る未確認事項を説明する。テスト成功はそのテストが調べた範囲の根拠であり、設計の妥当性や利用面の全体を自動的には保証しない。レビューでは意図しない挙動、互換性、読みやすさも確認する。
+Keep diffs small and grouped by purpose. Explain the reason for the change, its impact, the surfaces checked, and what remains unverified. A passing test supports only the behavior that test examined; it does not establish the soundness of the entire design or user experience. Review unintended behavior, compatibility, and readability as well.
 
-### 6. 複雑性の増加を抑える
+### 6. Control complexity
 
-既存の実装と慣習を読み、同じ責務の重複や根拠の薄い抽象化を避ける。新しい依存関係は、既存手段では満たせない必要性と保守コストを説明できるときに加える。短期の実装速度だけで設計を選ばず、次の変更が容易かを考える。例外は理由を説明できれば認める。
+Read the existing design and conventions. Avoid duplicate responsibilities and abstractions without a concrete need. Add a dependency only when its value over existing options and its maintenance cost can be explained. Consider whether the next change will be easy, not only how quickly this one can be written. Reasoned exceptions are allowed.
 
-## 将来検討する原則: 形式検証
+## Future exploration: formal verification
 
-型と通常のテストで十分に示せない重要な性質がある場合、対象を絞って仕様と証明の費用対効果を評価する。[Verus](https://verus-lang.github.io/verus/guide/overview.html) は Rust のコードに仕様を与えて静的に検証する選択肢の一つである。プロジェクト全体への導入、あるいは Rust の採用を要求しない。検討時には証明したい性質、適用範囲、ツールが扱えない部分、証明の維持費を明示する。形式検証に成功しても仕様そのものが正しいかは別にレビューする。
+When important properties cannot be adequately established by types and ordinary tests, evaluate specification and proof for a bounded part of the system. [Verus](https://verus-lang.github.io/verus/guide/overview.html) is one option for statically verifying Rust code against stated specifications. This does not require adopting Rust or formal methods across every project. Identify the property to prove, the verification boundary, unsupported parts of the toolchain, and the cost of maintaining the proof. A successful proof still requires review of the specification itself.
 
-## 現状との対応と改善候補
+## Baseline assessment and improvement candidates
 
-ここでの評価対象は、今回の追記前の `AGENTS.md`、`README.md`、`skills/nikostack/`、`docs/decisions/0001-入口スキルと小さな機能変更.md` である。今回追加した方針と、利用先での実装・検証実績は区別する。製品リポジトリの能力は評価していない。
+This assessment covers `AGENTS.md`, `README.md`, `skills/nikostack/`, and `docs/decisions/0001-entry-skill-and-small-feature.md` before the reliable software principles were added. Newly stated guidance is distinct from implementation and verification in a target product. This assessment does not evaluate any product repository.
 
-既存の設計判断には、Niko の `verify-niko` を境界確認に参照したことと、言語別規約を `ai-agent-coding-guide` に任せることが記録されている。pstack からの採用事項を特定できる記述は、このリポジトリ内には見つからなかったため、由来を推定して帰属させない。
+The initial design decision records Niko's `verify-niko` as an example used to check the shared-versus-product boundary and assigns language-specific guidance to `ai-agent-coding-guide`. No statement in this repository identifies a principle as originating from pstack, so this document does not infer that provenance.
 
-| 原則 | 現状 | 根拠と不足 |
+| Principle | Baseline | Evidence and gap |
 | --- | --- | --- |
-| 不正な状態の防止 | Not Supported | 対象の規約やコードを読む手順はあったが、不変条件を型や入力境界で守る方針は明示していなかった。今回、入口に方針を追加した。 |
-| 短い検証ループ | Partially Supported | 入口と小さな機能変更の手順に静的チェック・テスト・状態別の記録がある。自動実行環境や共通コマンドはない。 |
-| 振る舞いのテスト | Partially Supported | 観測できる完了条件、意味のある回帰テスト、実際の利用面での確認が既存手順にある。Expect/Snapshot の採用は利用先次第。 |
-| 決定的なシミュレーション | Not Supported | 時刻・乱数・外部効果の制御や再現手順は定めていなかった。今回、入口に条件付きの方針を追加したが、実装事例はない。 |
-| レビューしやすさ | Already Supported | 小さな差分、設計理由、コード状態に結び付いた証拠、未確認事項の報告が既存手順にある。 |
-| 複雑性の制御 | Partially Supported | 既存の設計を読むことと最小変更は既存手順にある。重複や依存関係の判断は今回明示したが、実例による確認はまだない。 |
-| 形式検証 | Future Exploration | 重要な性質に限定して検討する。現時点で共通手順や導入事例はない。 |
+| Prevent invalid states | Not Supported | The entry procedure required reading target conventions and code but did not state how to enforce invariants through types or input boundaries. This principle was subsequently added to the entry skill. |
+| Short verification loops | Partially Supported | The entry and small feature procedures required static checks, tests, and status-specific evidence. There was no shared automation environment or command. |
+| Behavior-oriented testing | Partially Supported | The existing procedure covered observable completion conditions, meaningful regression tests, and checks through the user-facing surface. Expect and snapshot tests remained product choices. |
+| Deterministic simulation | Not Supported | The procedure did not address control of time, randomness, or external effects. Conditional guidance was subsequently added, but there is no implementation example yet. |
+| Reviewability | Already Supported | Existing procedures required small diffs, design reasons, evidence tied to code state, and disclosure of unverified areas. |
+| Complexity control | Partially Supported | The procedure required reading the existing design and making the smallest change. Guidance on duplication and dependencies was added later; it has not yet been tested in a product case. |
+| Formal verification | Future Exploration | Consider it only for important, bounded properties. There is no shared procedure or adoption case yet. |
 
-| 改善候補 | 優先度 | 期待する効果 | 実装コスト・着手条件 |
+| Improvement candidate | Priority | Expected effect | Cost and condition |
 | --- | --- | --- | --- |
-| 実際の製品変更で、失敗時の出力と再実行手順を記録し、検証ループの詰まりを調べる | 高 | エージェントが自力で原因を絞り、未確認を正しく報告できる | 低。次の適用事例で行う。 |
-| スナップショットを使う製品で、差分を確認して承認する手順を整える | 中 | 意図しない振る舞いの変化を見つけやすくする | 低〜中。該当する製品が現れたとき。 |
-| 時刻・乱数・外部効果で不安定な製品に、差し替え可能な境界を設ける | 中 | 障害を再現し、検証結果を比較できる | 中。実際の不安定さを確認してから。 |
-| 重要度の高い不変条件に形式検証を試す | 低 | 通常のテストが覆いにくい性質を示す | 高。対象と証明する性質が明確になってから。 |
+| Record failure output and reproduction steps in a real product change, then identify friction in the verification loop | High | Help agents isolate failures and report unverified work accurately | Low; do this in the next application case. |
+| Establish a review step for snapshot diffs in a product that uses snapshots | Medium | Make unintended behavior changes easier to detect | Low to medium; wait for a relevant product. |
+| Add injectable boundaries in a product affected by unstable time, randomness, or external effects | Medium | Make failures reproducible and verification results comparable | Medium; first establish the actual source of instability. |
+| Trial formal verification for a high-value invariant | Low | Establish properties ordinary tests may miss | High; first define a specific target and property. |
 
-このリポジトリは共通手順のみを持つ。言語固有の規約、製品の仕様、コマンド、テスト基盤は利用先に置く。新しい共通ルールは、複数の適用事例で同じ問題が繰り返されたときに検討する。
+This repository contains only shared procedures. Language-specific rules, product specifications, commands, and test infrastructure belong in target projects. Consider a new shared rule when the same issue recurs across multiple applications.

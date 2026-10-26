@@ -1,41 +1,37 @@
 # nikostack
 
-nikostack は、複数のプロダクト開発で使うエージェントの共通手順です。v0.1 の最初の段階として、開発依頼の入口と小さな機能変更の手順を置いています。製品固有の操作・期待結果・検証方法は各プロジェクトで管理します。
+Nikostack provides a shared development workflow for coding agents across product repositories. Version 0.1 starts with an entry skill and a procedure for small feature changes. Each product project owns its operations, expected behavior, and verification methods.
 
-## プラグインとして利用する
+## Install as a plugin
 
-このリポジトリ自体が `nikostack` プラグインです。`skills/nikostack/` を唯一のスキル原本とし、Codex 用の `plugin.json` と Claude Code 用の `.claude-plugin/plugin.json` が同じ原本を参照します。MCP サーバーや製品別の設定は含みません。
+This repository is the `nikostack` plugin. `skills/nikostack/` is its single skill source. The root `plugin.json` packages it for Codex, and `.claude-plugin/plugin.json` provides Claude Code compatibility. The package contains no MCP server or product-specific settings.
 
-Codex CLI では、このリポジトリをマーケットプレイスとして追加し、プラグインをインストールします。
+For Codex CLI, add this repository as a marketplace and install the plugin:
 
 ```text
 codex plugin marketplace add SuguruSasaki/nikostack
 codex plugin add nikostack@nikostack
 ```
 
-Claude Code では、次のコマンドを実行します。
+For Claude Code:
 
 ```text
 claude plugin marketplace add SuguruSasaki/nikostack
 claude plugin install nikostack@nikostack
 ```
 
-インストール後は新しいセッションでスキルを利用してください。Claude Code のプラグインスキル名は `/nikostack:nikostack` です。各プラグインの発見やインストール方法は、[Codex の公式説明](https://developers.openai.com/plugins/build/plugins)と[Claude Code の公式説明](https://code.claude.com/docs/en/plugin-marketplaces)に従います。
+Start a new session after installation. The Claude Code plugin skill is `/nikostack:nikostack`. See the [OpenAI Docs packaging guide](https://developers.openai.com/plugins/build/plugins) and the [Claude Code marketplace guide](https://code.claude.com/docs/en/plugin-marketplaces) for platform details.
 
-## このリポジトリでスキルを確認する
+## Use the skill in this repository
 
-Codex または Claude Code をこのディレクトリで開くと、`$nikostack`（Codex）または `/nikostack`（Claude Code）で入口を明示的に呼び出せる構成です。依頼に応じた自動選択も想定しています。入口は [skills/nikostack/SKILL.md](skills/nikostack/SKILL.md)、小さな機能変更の手順は [small-feature.md](skills/nikostack/references/small-feature.md) です。別の製品リポジトリで使う場合は上記のプラグインをインストールし、その製品の指示に従います。
+When you open this directory in Codex or Claude Code, you can invoke the entry skill as `$nikostack` or `/nikostack`, respectively. Agents may also select it when a request matches its description. The entry point is [SKILL.md](skills/nikostack/SKILL.md); the [small feature procedure](skills/nikostack/references/small-feature.md) provides more detail. To use Nikostack in another product repository, install the plugin and follow that project's instructions.
 
-スキルの原本は `skills/nikostack/` に一つだけあります。`.agents/skills/nikostack` と `.claude/skills/nikostack` は、その原本への相対シンボリックリンクです。変更時は原本だけを編集してください。利用先にはプラグインをインストールし、製品固有の設定はそのリポジトリで管理します。
+`.agents/skills/nikostack` and `.claude/skills/nikostack` are relative symbolic links to the one source at `skills/nikostack/`. Edit the source only. Keep product-specific settings in the product repository.
 
-## 確認した範囲
+## Verification status
 
-- スキルの構文と相対リンク、両ツールの発見場所からの参照を確認した。
-- Claude Code のマニフェストとマーケットプレイスの検証、両 CLI でのローカル登録・インストール・スキル発見を確認した。検証用のインストールと登録は削除済み。
-- 実際の製品リポジトリで手順が守られるか、Codex と Claude Code の双方での開発依頼への適用は次段階の課題とする。
+- The skill syntax, relative links, and local discovery paths were checked.
+- The Claude Code manifest and marketplace passed validation. Both CLIs installed the plugin from a local marketplace and discovered the skill. The temporary installations and marketplace registrations were removed.
+- Applying the installed skill to an actual product change in both tools remains untested.
 
-構成を選んだ理由と適用範囲は [設計判断](docs/decisions/0001-入口スキルと小さな機能変更.md) に記録しています。
-
-プラグインの配布方法は[設計判断 0002](docs/decisions/0002-プラグインとしての配布.md)に記録しています。
-
-変更の正しさ、検証、レビューしやすさを考える際の共通原則と現状との差分は、[信頼できるソフトウェア開発の参考資料](docs/references/jane-street-reliable-software.md)にまとめています。これは製品ごとの規約や検証手順を置き換えるものではありません。
+The [initial design decision](docs/decisions/0001-entry-skill-and-small-feature.md) explains the entry skill and scope. The [plugin distribution decision](docs/decisions/0002-plugin-distribution.md) records the packaging choice. The [reliable software engineering reference](docs/references/jane-street-reliable-software.md) covers shared principles and gaps; it does not replace product-specific rules or verification procedures.

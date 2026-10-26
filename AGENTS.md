@@ -1,9 +1,9 @@
-# nikostack の保守
+# Maintaining Nikostack
 
-`skills/nikostack/` が Codex と Claude Code の共通原本です。入口を変更するときは [SKILL.md](skills/nikostack/SKILL.md) と必要な参照だけを編集し、`.agents/skills/` と `.claude/skills/` に内容を複製しないでください。
+`skills/nikostack/` is the single source for Codex and Claude Code. When changing the entry point, edit [SKILL.md](skills/nikostack/SKILL.md) and only the necessary references. Do not copy its content into `.agents/skills/` or `.claude/skills/`.
 
-プラグインのマニフェストとマーケットプレイスは配布用の薄いメタデータとして保ち、スキル本体や製品固有の指示を複製しないでください。
+Keep plugin manifests and marketplaces as thin distribution metadata. Do not duplicate the skill or product-specific instructions in them.
 
-このリポジトリには共通の開発手順だけを置きます。製品固有の仕様、検証コマンド、Feature Map、個人情報や認証情報は利用先のプロジェクトで管理してください。
+Keep only shared development procedures in this repository. Product-specific specifications, verification commands, Feature Maps, personal information, and credentials belong in the target project.
 
-変更では、対象リポジトリの既存設計に沿って不正な状態を防ぎ、観測できる振る舞いを適切な方法で検証してください。小さく説明可能な差分を保ち、検証で確認できた範囲と未確認の範囲を人間に伝えてください。手段は言語・対象・リスクに応じて選びます。判断の背景と適用例は[信頼できるソフトウェア開発の参考資料](docs/references/jane-street-reliable-software.md)を参照してください。
+For a change, follow the target repository's existing design to prevent invalid states and verify observable behavior with an appropriate method. Keep the diff small and explainable. Tell human reviewers what was verified and what remains unverified. Choose techniques according to the language, target, and risk. See the [reliable software engineering reference](docs/references/jane-street-reliable-software.md) for rationale and examples.
