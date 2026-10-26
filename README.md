@@ -1,6 +1,6 @@
 # nikostack
 
-Nikostack provides a shared development workflow for coding agents across product repositories. Version 0.1 starts with an entry skill and a procedure for small feature changes. Each product project owns its operations, expected behavior, and verification methods.
+Nikostack provides a shared development workflow for coding agents across product repositories. Version 0.2 adds project label setup and an optional serial Mac Issue worker to the entry skill and small-feature procedure. Each product project owns its operations, expected behavior, and verification methods.
 
 ## Install as a plugin
 
@@ -20,14 +20,15 @@ claude plugin marketplace add SuguruSasaki/nikostack
 claude plugin install nikostack@nikostack
 ```
 
-## Prepare a product project
-
-After installing nikostack, follow [project setup](skills/nikostack/references/setup-project.md)
-to preview and create missing AI task labels in the target product repository.
-Existing labels are preserved. Plugin installation itself does not change
-GitHub settings or start an agent.
-
 ## Activate it in a product repository
+
+On first adoption, follow [project setup](skills/nikostack/references/setup-project.md).
+The shared helper previews and creates missing AI issue labels without replacing
+existing labels or starting work. Plugin installation itself does not write to GitHub.
+
+For optional Issue-to-draft-PR automation on your Mac, follow the
+[local worker guide](docs/issue-worker.md). The worker uses the same skill source
+and product-owned checks; it does not require a global plugin installation.
 
 Install the plugin once with the commands above. Then start the agent from the product repository you want to change:
 
@@ -59,6 +60,14 @@ When you open this directory in Codex or Claude Code, you can invoke the entry s
 `.agents/skills/nikostack` and `.claude/skills/nikostack` are relative symbolic links to the one source at `skills/nikostack/`. Edit the source only. Keep product-specific settings in the product repository.
 
 ## Verification status
+
+- Version 0.2 adds fixture-tested label setup and local Issue automation. The
+  shared label script was applied to Niko and rerun without replacing its
+  existing labels. The worker's GitHub queue dry-run was exercised.
+- The live Claude edit/review smoke check is blocked: the execution approval
+  layer rejected an unexpected log-intake destination with an unverified
+  telemetry payload. Do not treat the new worker as end-to-end verified or
+  activate unattended processing until that check can be completed safely.
 
 - The skill metadata, relative links, and local discovery paths were checked. The Claude Code manifest and marketplace passed validation.
 - Codex CLI 0.164.0 and Claude Code 2.1.310 installed version 0.1.2 from the local marketplace and discovered the skill. Version 0.1.0 was also installed from GitHub in both CLIs. Temporary installations and registrations were removed.
