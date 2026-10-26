@@ -1,0 +1,22 @@
+[
+  {
+    "name": "ai-ready",
+    "color": "0E8A16",
+    "description": "人が着手を許可した仕事。目的・範囲・完了条件・検証方法を確認し、着手時に外す。"
+  },
+  {
+    "name": "ai-in-progress",
+    "color": "1D76DB",
+    "description": "AIが担当して作業中。担当とブランチを記録する。重複着手しない。"
+  },
+  {
+    "name": "ai-blocked",
+    "color": "D93F0B",
+    "description": "判断待ち・環境不足・失敗で停止。理由を確認し、解消後に人が再投入する。"
+  },
+  {
+    "name": "ai-review",
+    "color": "5319E7",
+    "description": "調査結果またはDraft PRを提出済み。人の確認待ち。マージ・アプリ更新の許可ではない。"
+  }
+]
